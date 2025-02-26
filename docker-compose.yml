@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:5
+    container_name: aom_mongo
+    restart: always
+    ports:
+      - "27019:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: aom_user
+      MONGO_INITDB_ROOT_PASSWORD: aom_password
+    command: ["mongod", "--bind_ip_all"]
+    networks:
+      - aom_network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      retries: 5
+  mongo-init:
+    image: mongo:5
+    container_name: aom_mongo_init
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: "no"
+    volumes:
+      - ./init-mongo.js:/init-mongo.js
+    command: ["mongosh", "--host", "mongo", "-u", "aom_user", "-p", "aom_password", "--authenticationDatabase", "admin", "aom_instances", "/init-mongo.js"]
+    networks:
+      - aom_network
+  datero:
+    image: docker.io/chumaky/datero:latest
+    container_name: datero_main
+    environment:
+      POSTGRES_USER: aom_user      
+      POSTGRES_PASSWORD: aom_password 
+    ports:
+      - 8080:80
+      - 4444:5432
+    volumes:
+      - ./config.yaml:/home/instance/config.yaml 
+       
+    networks:
+      - aom_network
+  directus:
+    image: directus/directus:11.3.5
+    container_name: aom_directus
+    restart: always
+    ports:
+      - "8055:8055"
+    volumes:
+      - ./uploads:/directus/uploads
+      - ./extensions:/directus/extensions
+    environment:
+      SECRET: "replace-with-secure-random-value"
+      ADMIN_EMAIL: "admin@example.com"
+      ADMIN_PASSWORD: "d1r3ctu5"
+      DB_CLIENT: "pg"
+      DB_HOST: "host.docker.internal"
+      DB_PORT: "4444"
+      DB_DATABASE: "postgres"  
+      DB_USER: "aom_user"      
+      DB_PASSWORD: "aom_password"  
+      WEBSOCKETS_ENABLED: "true"
+    networks:
+      - aom_network
+    depends_on:
+      - datero
+ 
+volumes:
+  mongo_data:
+
+networks:
+  aom_network:
+    name: aom_network  
+    driver: bridge

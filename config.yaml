@@ -1,0 +1,11 @@
+servers:
+  mongo_fdw_1:
+    description: aom_instances
+    fdw_name: mongo_fdw
+    foreign_server:
+      address: "host.docker.internal"
+      port: 27019
+      authentication_database: admin
+    user_mapping:
+      username: aom_user
+      password: aom_password
